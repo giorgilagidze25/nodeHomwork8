@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { isValidObjectId } = require("mongoose");
 const Director = require("../models/director.model");
-const Film = require("../models/film.model");
+const { directorSchema } = require("../validetion/director.validetion");
 
 const directorRouter = Router();
 
@@ -14,11 +14,12 @@ directorRouter.get('/', async (req, res) => {
 });
 
 directorRouter.post('/', async (req, res) => {
-    const { fullName, birthYear } = req.body;
-
-    if (!fullName) {
-        return res.status(400).json({ message: "Full name is required" });
+    const { error } = directorSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
     }
+
+    const { fullName, birthYear } = req.body;
 
     const director = await Director.create({ fullName, birthYear });
     res.status(201).json(director);

@@ -8,6 +8,12 @@ const filmSchema = new mongoose.Schema({
     genre: {
         type: String,
     },
+    year: {
+        type: Number,
+    },
+    desc: {
+        type: String,
+    },
     director: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Director'
