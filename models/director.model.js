@@ -8,6 +8,16 @@ const directorSchema = new mongoose.Schema({
     birthYear: {
         type: Number,
     },
+    password:{
+    type: String,
+    require:true,
+    select: false
+    },
+    email: {
+        type: String,
+        required: true,
+        unique: true, 
+      },
     movies: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Film', 

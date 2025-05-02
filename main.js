@@ -2,11 +2,15 @@ const express = require('express')
 const connectToDb = require('./db/db')
 const directorRouter = require('./routers/director.router')
 const filmRouter = require('./routers/film.router')
+const isAuth = require('./midelwear/isAuth.midelwear')
+const authRouter = require('./routers/auth.router')
+const timer = require('./midelwear/timer.midelwear')
 const app = express()
 
 connectToDb()
 
 app.use(express.json())
+app.use(timer)
 
 app.get('', (req, res) => {
     res.send('hello world')
@@ -14,7 +18,9 @@ app.get('', (req, res) => {
 
 
 
-app.use("/director", directorRouter);
+app.use("/director",  isAuth, directorRouter);
+app.use("/auth",  authRouter);
+
 app.use("/films", filmRouter);
 
 

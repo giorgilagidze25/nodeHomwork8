@@ -2,26 +2,23 @@ const { Router } = require('express');
 const Film = require('../models/film.model');
 const Director = require('../models/director.model');
 const { filmSchema } = require('../validetion/film.validetion');
-const cheakDirector = require('../midelwear/cheakDirector.midelwear');
+const isAuth = require('../midelwear/isAuth.midelwear');
+const { isValidObjectId } = require('mongoose');
 
 const filmRouter = Router();
+
 filmRouter.get('/', async (req, res) => {
     const { genre, year, page = 1, take = 30 } = req.query;
     const filter = {};
     const limit = Math.min(take, 30);
 
-    if (genre) {
-        filter.genre = genre;
-    }
-
-    if (year) {
-        filter.year = year;
-    }
+    if (genre) filter.genre = genre;
+    if (year) filter.year = year;
 
     const skip = (Number(page) - 1) * limit;
 
     const films = await Film.find(filter)
-        .skip(skip) 
+        .skip(skip)
         .limit(limit)
         .select('_id title genre year desc')
         .populate('director', '_id fullName');
@@ -29,32 +26,27 @@ filmRouter.get('/', async (req, res) => {
     const response = films.map(film => {
         const { _id, title, genre, year, desc, director } = film.toObject();
         const result = { _id, title, genre, year, director };
-
-        if (desc && desc.trim() !== '') {
-            result.desc = desc;
-        }
-
+        if (desc && desc.trim() !== '') result.desc = desc;
         return result;
     });
 
     const totalFilms = await Film.countDocuments(filter);
 
     res.json({
-        total: totalFilms, 
-        films: response, 
+        total: totalFilms,
+        films: response,
         page: Number(page),
-        limit: limit, 
+        limit: limit,
     });
 });
 
-
-filmRouter.post('/', cheakDirector, async (req, res) => {
+filmRouter.post('/', isAuth, async (req, res) => {
     const { error } = filmSchema.validate(req.body);
     if (error) {
         return res.status(400).json({ message: error.details[0].message });
     }
 
-    const directorId = req.header('director-id');
+    const directorId = req.userId;
     const { title, genre, year, desc } = req.body;
 
     const film = await Film.create({ title, genre, year, desc, director: directorId });
@@ -68,14 +60,30 @@ filmRouter.get('/:id', async (req, res) => {
     res.json(film);
 });
 
-filmRouter.put('/:id', async (req, res) => {
+filmRouter.put('/:id', isAuth, async (req, res) => {
+    const film = await Film.findById(req.params.id);
+    if (!film) return res.status(404).json({ message: 'Film not found' });
+
+    if (film.director.toString() !== req.userId) {
+        return res.status(403).json({ message: 'You can only update your own film' });
+    }
+
     const updated = await Film.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(updated);
 });
 
-filmRouter.delete('/:id', async (req, res) => {
-    const deleted = await Film.findByIdAndDelete(req.params.id);
-    res.json(deleted);
+filmRouter.delete('/:id', isAuth, async (req, res) => {
+    const film = await Film.findById(req.params.id);
+    if (!film) return res.status(404).json({ message: 'Film not found' });
+
+    if (film.director.toString() !== req.userId) {
+        return res.status(403).json({ message: 'You can only delete your own film' });
+    }
+
+    await Film.findByIdAndDelete(req.params.id);
+    await Director.findByIdAndUpdate(req.userId, { $pull: { movies: req.params.id } });
+
+    res.json({ message: 'Film deleted successfully' });
 });
 
 module.exports = filmRouter;
